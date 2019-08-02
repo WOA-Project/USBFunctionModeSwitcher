@@ -23,8 +23,12 @@ SOFTWARE.
 */
 
 using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using KPreisser.UI;
+using Microsoft.Win32;
 
 namespace USBFunctionModeSwitcher
 {
@@ -33,7 +37,72 @@ namespace USBFunctionModeSwitcher
         [STAThread]
         static void Main()
         {
-            ShowTaskDialog();
+            (bool supported, string reason) = IsSupported();
+
+            if (supported)
+            {
+                ShowTaskDialog();
+            }
+            else
+            {
+                var dialogPage = new TaskDialogPage()
+                {
+                    Title = "USB Function Mode Switcher",
+                    Instruction = "Unsupported device",
+                    Text = reason,
+
+                    Footer =
+                    {
+                        Text = "Please verify that you run a supported device with the latest drivers available for it.",
+                        Icon = TaskDialogStandardIcon.Information,
+                    },
+
+                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                    AllowCancel = true,
+                    SizeToContent = true,
+
+                    Icon = TaskDialogStandardIcon.Error
+                };
+
+                TaskDialogCustomButton closemainbutton = dialogPage.CustomButtons.Add("Close");
+                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                {
+                    args.CancelClose = true;
+
+                    var newPage = new TaskDialogPage()
+                    {
+                        Title = "USB Function Mode Switcher",
+                        Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
+                        "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
+                        "\nReleased under the MIT License" +
+                        "\n\nLibraries used for this application:" +
+                        "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
+                        "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
+                        Instruction = "About",
+                        Icon = TaskDialogStandardIcon.Information,
+                        CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                        AllowCancel = true,
+                        EnableHyperlinks = true,
+                        SizeToContent = true
+                    };
+
+                    TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
+                    TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
+
+                    srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+                    {
+                        Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
+                    };
+
+                    var innerDialog = new TaskDialog(newPage);
+                    TaskDialogButton innerResult = innerDialog.Show();
+                };
+
+                var dialog = new TaskDialog(dialogPage);
+
+                TaskDialogButton result = dialog.Show();
+            }
         }
 
         private static void ShowTaskDialog()
@@ -55,112 +124,112 @@ namespace USBFunctionModeSwitcher
                 SizeToContent = true
             };
 
-            var dialog = new KPreisser.UI.TaskDialog(dialogPage);
+            var dialog = new TaskDialog(dialogPage);
 
-            ModeHandler handler = new ModeHandler();
+            var handler = new USBRoleHandler();
 
-            // Create custom buttons that are shown as command links.
-            if (ModeHandler.IsUSBC())
+            foreach (var role in handler.USBRoles)
             {
-                TaskDialogCustomButton hostunpoweredbutton = dialogPage.CustomButtons.Add("Host mode (Power output disabled)", "Default mode of the device. Enables connecting USB devices to the phone using the Continuum dock or any powered USB docking station or hub.");
-                TaskDialogCustomButton hostpoweredbutton = dialogPage.CustomButtons.Add("Host mode (Power output enabled) (Unsafe, read before enabling)", "Enables connecting USB devices to the phone using a standard USB cable, non powered USB docking station, or any non powered hub.\n\nImportant: Do not plug a cable transmiting power into the device when running in this mode. This includes a charging cable, PC USB port, wall charger or Continuum dock. Doing so will harm your device!");
-
-                switch (handler.CheckCurrentMode())
+                TaskDialogCustomButton rolebutton = dialogPage.CustomButtons.Add(role.DisplayName, role.Description);
+                if (role == handler.CurrentUSBRole)
                 {
-                    case ModeHandler.USBModes.HostNonPowered:
-                        hostunpoweredbutton.Enabled = false;
-                        break;
-
-                    case ModeHandler.USBModes.HostPowered:
-                        hostpoweredbutton.Enabled = false;
-                        break;
+                    rolebutton.Enabled = false;
                 }
 
-                hostunpoweredbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                rolebutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
                 {
-                    handler.SetCurrentMode(ModeHandler.USBModes.HostNonPowered);
-                    System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
-                };
-
-                hostpoweredbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
-                {
-                    args.CancelClose = true;
-
-                    var newPage = new TaskDialogPage()
+                    if (role.IsHost && role.HostRole.EnableVbus)
                     {
-                        Title = "USB Function Mode Switcher",
-                        Text = "Switching to this mode will enable power output from the USB Type C port. This may harm your device if you plug in a charging cable or a continuum dock. In this mode NEVER plug in any charging cable, wall charger, PC USB Cable (connected to a PC) or any externally powered USB hub! We cannot be taken responsible for any damage caused by this, you have been warned!",
-                        Instruction = "Do you really want to do this?",
-                        Icon = TaskDialogStandardIcon.Warning,
-                        CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
-                        AllowCancel = true,
-                        SizeToContent = true
-                    };
+                        args.CancelClose = true;
 
-                    TaskDialogCustomButton nobutton = newPage.CustomButtons.Add("No");
-                    TaskDialogCustomButton yesbutton = newPage.CustomButtons.Add("Yes I understand all the risks");
+                        var newPage = new TaskDialogPage()
+                        {
+                            Title = "USB Function Mode Switcher",
+                            Text = "Switching to this mode will enable power output from the USB Type C port. This may harm your device if you plug in a charging cable or a continuum dock. In this mode NEVER plug in any charging cable, wall charger, PC USB Cable (connected to a PC) or any externally powered USB hub! We cannot be taken responsible for any damage caused by this, you have been warned!",
+                            Instruction = "Do you really want to do this?",
+                            Icon = TaskDialogStandardIcon.Warning,
+                            CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                            AllowCancel = true,
+                            SizeToContent = true
+                        };
 
-                    yesbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+                        TaskDialogCustomButton nobutton = newPage.CustomButtons.Add("No");
+                        TaskDialogCustomButton yesbutton = newPage.CustomButtons.Add("Yes I understand all the risks");
+
+                        yesbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+                        {
+                            handler.CurrentUSBRole = role;
+                            dialog.Close();
+                            RebootDevice();
+                        };
+
+                        var innerDialog = new TaskDialog(newPage);
+                        TaskDialogButton innerResult = innerDialog.Show();
+                    }
+                    else
                     {
-                        handler.SetCurrentMode(ModeHandler.USBModes.HostPowered);
-                        System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
-                        dialog.Close();
-                    };
-
-                    var innerDialog = new TaskDialog(newPage);
-                    TaskDialogButton innerResult = innerDialog.Show();
+                        handler.CurrentUSBRole = role;
+                        RebootDevice();
+                    }
                 };
             }
 
-            TaskDialogCustomButton functionretail      = dialogPage.CustomButtons.Add("Function mode (Retail)", "Enables MTP, NCSd, IPOverUSB and VidStream connections from another computer. Windows Phone Normal USB Mode.");
-            TaskDialogCustomButton functionserial      = dialogPage.CustomButtons.Add("Function mode (Serial)", "Enables DIAG, MODEM, NMEA and TRACE connections from another computer. Qualcomm Serial Diagnostics Mode.");
-            TaskDialogCustomButton functionrmnet       = dialogPage.CustomButtons.Add("Function mode (RmNet)", "Enables DIAG, NMEA, MODEM and RMNET connections from another computer. Qualcomm Wireless Diagnostics Mode.");
-            TaskDialogCustomButton functiondpl         = dialogPage.CustomButtons.Add("Function mode (DPL)", "Enables DIAG, MODEM, RMNET and DPL connections from another computer. Qualcomm Data Protocol Logging Mode.");
-
-            switch (handler.CheckCurrentMode())
+            TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+            aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
             {
-                case ModeHandler.USBModes.FunctionDPL:
-                    functiondpl.Enabled = false;
-                    break;
+                args.CancelClose = true;
 
-                case ModeHandler.USBModes.FunctionRetail:
-                    functionretail.Enabled = false;
-                    break;
+                var newPage = new TaskDialogPage()
+                {
+                    Title = "USB Function Mode Switcher",
+                    Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
+                    "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
+                    "\nReleased under the MIT License" +
+                    "\n\nLibraries used for this application:" +
+                    "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
+                    "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
+                    Instruction = "About",
+                    Icon = TaskDialogStandardIcon.Information,
+                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                    AllowCancel = true,
+                    EnableHyperlinks = true,
+                    SizeToContent = true
+                };
 
-                case ModeHandler.USBModes.FunctionRmNet:
-                    functionrmnet.Enabled = false;
-                    break;
+                TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
+                TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
 
-                case ModeHandler.USBModes.FunctionSerial:
-                    functionserial.Enabled = false;
-                    break;
-            }
+                srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+                {
+                    Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
+                };
 
-            functiondpl.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
-            {
-                handler.SetCurrentMode(ModeHandler.USBModes.FunctionDPL);
-                System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
-            };
-
-            functionretail.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
-            {
-                handler.SetCurrentMode(ModeHandler.USBModes.FunctionRetail);
-                System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
-            };
-
-            functionrmnet.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
-            {
-                handler.SetCurrentMode(ModeHandler.USBModes.FunctionRmNet);
-                System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
-            };
-
-            functionserial.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
-            {
-                handler.SetCurrentMode(ModeHandler.USBModes.FunctionSerial);
-                System.Diagnostics.Process.Start("shutdown", "/r /t 10 /f");
+                var innerDialog = new TaskDialog(newPage);
+                TaskDialogButton innerResult = innerDialog.Show();
             };
 
             TaskDialogButton result = dialog.Show();
+        }
+
+        private static (bool, string) IsSupported()
+        {
+            RegistryKey ufnkey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\ufnserialclass");
+            if (ufnkey == null)
+                return (false, "Your device is missing the Qualcomm USB Composite device or driver.");
+            ufnkey.Close();
+
+            RegistryKey trkey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\QCDIAGROUTER");
+            if (trkey == null)
+                return (false, "Your device is missing the Qualcomm Diagnostic Router device or driver.");
+            trkey.Close();
+
+            return (true, "");
+        }
+
+        private static void RebootDevice()
+        {
+            if (!Debugger.IsAttached)
+                Process.Start("shutdown", "/r /t 10 /f");
         }
     }
 }
