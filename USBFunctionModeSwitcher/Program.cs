@@ -113,30 +113,11 @@ namespace USBFunctionModeSwitcher
                     if (role.IsHost && role.HostRole.EnableVbus)
                     {
                         args.CancelClose = true;
-
-                        var newPage = new TaskDialogPage()
-                        {
-                            Title = "USB Function Mode Switcher",
-                            Text = "Switching to this mode will enable power output from the USB Type C port. This may harm your device if you plug in a charging cable or a continuum dock. In this mode NEVER plug in any charging cable, wall charger, PC USB Cable (connected to a PC) or any externally powered USB hub! We cannot be taken responsible for any damage caused by this, you have been warned!",
-                            Instruction = "Do you really want to do this?",
-                            Icon = TaskDialogStandardIcon.Warning,
-                            CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
-                            AllowCancel = true,
-                            SizeToContent = true
-                        };
-
-                        TaskDialogCustomButton nobutton = newPage.CustomButtons.Add("No");
-                        TaskDialogCustomButton yesbutton = newPage.CustomButtons.Add("Yes I understand all the risks");
-
-                        yesbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+                        ShowDisclaimerDialog(dialog, () =>
                         {
                             handler.CurrentUSBRole = role;
-                            dialog.Close();
                             RebootDevice();
-                        };
-
-                        var innerDialog = new TaskDialog(newPage);
-                        TaskDialogButton innerResult = innerDialog.Show();
+                        });
                     }
                     else
                     {
@@ -175,6 +156,38 @@ namespace USBFunctionModeSwitcher
         {
             if (!Debugger.IsAttached)
                 Process.Start("shutdown", "/r /t 10 /f");
+        }
+
+        private static void ShowDisclaimerDialog(TaskDialog dialog, Action action)
+        {
+            var newPage = new TaskDialogPage()
+            {
+                Title = "USB Function Mode Switcher",
+                Text = "Switching to this mode will enable power output from the USB Type C port. This may harm your device if you plug in a charging cable or a continuum dock. In this mode NEVER plug in any charging cable, wall charger, PC USB Cable (connected to a PC) or any externally powered USB hub! We cannot be taken responsible for any damage caused by this, you have been warned!",
+                Instruction = "Do you really want to do this?",
+                Icon = TaskDialogStandardIcon.Warning,
+                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                AllowCancel = true,
+                SizeToContent = true
+            };
+
+            TaskDialogCustomButton nobutton = newPage.CustomButtons.Add("No");
+            TaskDialogCustomButton yesbutton = newPage.CustomButtons.Add("Yes I understand all the risks");
+
+            yesbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                action();
+            };
+
+            var origpage = dialog.Page;
+
+            nobutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                args2.CancelClose = true;
+                dialog.Page = origpage;
+            };
+
+            dialog.Page = newPage;
         }
 
         private static void ShowAboutDialog(TaskDialog dialog)
