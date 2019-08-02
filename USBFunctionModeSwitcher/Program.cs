@@ -24,9 +24,7 @@ SOFTWARE.
 
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using KPreisser.UI;
 using Microsoft.Win32;
 
@@ -66,40 +64,14 @@ namespace USBFunctionModeSwitcher
 
                 TaskDialogCustomButton closemainbutton = dialogPage.CustomButtons.Add("Close");
                 TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+
+                var dialog = new TaskDialog(dialogPage);
+
                 aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
                 {
                     args.CancelClose = true;
-
-                    var newPage = new TaskDialogPage()
-                    {
-                        Title = "USB Function Mode Switcher",
-                        Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
-                        "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
-                        "\nReleased under the MIT License" +
-                        "\n\nLibraries used for this application:" +
-                        "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
-                        "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
-                        Instruction = "About",
-                        Icon = TaskDialogStandardIcon.Information,
-                        CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
-                        AllowCancel = true,
-                        EnableHyperlinks = true,
-                        SizeToContent = true
-                    };
-
-                    TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
-                    TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
-
-                    srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
-                    {
-                        Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
-                    };
-
-                    var innerDialog = new TaskDialog(newPage);
-                    TaskDialogButton innerResult = innerDialog.Show();
+                    ShowAboutDialog(dialog);
                 };
-
-                var dialog = new TaskDialog(dialogPage);
 
                 TaskDialogButton result = dialog.Show();
             }
@@ -178,34 +150,7 @@ namespace USBFunctionModeSwitcher
             aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
             {
                 args.CancelClose = true;
-
-                var newPage = new TaskDialogPage()
-                {
-                    Title = "USB Function Mode Switcher",
-                    Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
-                    "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
-                    "\nReleased under the MIT License" +
-                    "\n\nLibraries used for this application:" +
-                    "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
-                    "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
-                    Instruction = "About",
-                    Icon = TaskDialogStandardIcon.Information,
-                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
-                    AllowCancel = true,
-                    EnableHyperlinks = true,
-                    SizeToContent = true
-                };
-
-                TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
-                TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
-
-                srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
-                {
-                    Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
-                };
-
-                var innerDialog = new TaskDialog(newPage);
-                TaskDialogButton innerResult = innerDialog.Show();
+                ShowAboutDialog(dialog);
             };
 
             TaskDialogButton result = dialog.Show();
@@ -230,6 +175,45 @@ namespace USBFunctionModeSwitcher
         {
             if (!Debugger.IsAttached)
                 Process.Start("shutdown", "/r /t 10 /f");
+        }
+
+        private static void ShowAboutDialog(TaskDialog dialog)
+        {
+            var newPage = new TaskDialogPage()
+            {
+                Title = "USB Function Mode Switcher",
+                Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
+                        "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
+                        "\nReleased under the MIT License" +
+                        "\n\nLibraries used for this application:" +
+                        "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
+                        "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
+                Instruction = "About",
+                Icon = TaskDialogStandardIcon.Information,
+                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                AllowCancel = true,
+                EnableHyperlinks = true,
+                SizeToContent = true
+            };
+
+            TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
+            TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
+
+            srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                args2.CancelClose = true;
+                Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
+            };
+
+            var origpage = dialog.Page;
+
+            closebutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                args2.CancelClose = true;
+                dialog.Page = origpage;
+            };
+
+            dialog.Page = newPage;
         }
     }
 }
