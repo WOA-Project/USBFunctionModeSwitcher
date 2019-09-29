@@ -373,7 +373,7 @@ namespace USBFunctionModeSwitcher
                                 }
                         }
 
-                        USBRole usbrole = new USBRole() { DisplayName = "Function mode (" + subkey.Replace("Config", "").Replace("Composite", "") + ")", Description = description, IsHost = false, FunctionRole = functionRole };
+                        USBRole usbrole = new USBRole() { DisplayName = "Function mode (" + subkey.Replace("config", "").Replace("composite", "") + ")", Description = description, IsHost = false, FunctionRole = functionRole };
                         usbroles.Add(usbrole);
                     }
                 }
