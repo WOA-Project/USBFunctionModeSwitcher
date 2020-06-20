@@ -24,6 +24,7 @@ SOFTWARE.
 
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using KPreisser.UI;
 using Microsoft.Win32;
@@ -96,45 +97,84 @@ namespace USBFunctionModeSwitcher
                 SizeToContent = true
             };
 
-            var dialog = new TaskDialog(dialogPage);
-
-            var handler = new USBRoleHandler();
-
-            foreach (var role in handler.USBRoles)
+            try
             {
-                TaskDialogCustomButton rolebutton = dialogPage.CustomButtons.Add(role.DisplayName, role.Description);
-                if (role == handler.CurrentUSBRole)
-                {
-                    rolebutton.Enabled = false;
-                }
+                var dialog = new TaskDialog(dialogPage);
 
-                rolebutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                var handler = new USBRoleHandler();
+
+                foreach (var role in handler.USBRoles)
                 {
-                    if (role.IsHost && role.HostRole.EnableVbus)
+                    TaskDialogCustomButton rolebutton = dialogPage.CustomButtons.Add(role.DisplayName, role.Description);
+                    if (role == handler.CurrentUSBRole)
                     {
-                        args.CancelClose = true;
-                        ShowDisclaimerDialog(dialog, () =>
+                        rolebutton.Enabled = false;
+                    }
+
+                    rolebutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                    {
+                        if (role.IsHost && role.HostRole.EnableVbus)
+                        {
+                            args.CancelClose = true;
+                            ShowDisclaimerDialog(dialog, () =>
+                            {
+                                handler.CurrentUSBRole = role;
+                                RebootDevice();
+                            });
+                        }
+                        else
                         {
                             handler.CurrentUSBRole = role;
                             RebootDevice();
-                        });
-                    }
-                    else
+                        }
+                    };
+                }
+
+                if (USBRoleHandler.IsUSBCv2())
+                {
+                    TaskDialogCustomButton polaritybutton = dialogPage.CustomButtons.Add("Polarity", "Change the polarity of the USB C port");
+                    polaritybutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
                     {
-                        handler.CurrentUSBRole = role;
-                        RebootDevice();
-                    }
+                        args.CancelClose = true;
+                        ShowPolarityDialog(dialog);
+                    };
+                }
+
+                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                {
+                    args.CancelClose = true;
+                    ShowAboutDialog(dialog);
                 };
+
+                TaskDialogButton result = dialog.Show();
             }
-
-            TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
-            aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+            catch (Exception ex)
             {
-                args.CancelClose = true;
-                ShowAboutDialog(dialog);
-            };
+                dialogPage = new TaskDialogPage()
+                {
+                    Title = "USB Function Mode Switcher",
+                    Instruction = "Something happened",
+                    Text = ex.ToString(),
+                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                    AllowCancel = true,
+                    SizeToContent = true,
+                    Icon = TaskDialogStandardIcon.Error
+                };
 
-            TaskDialogButton result = dialog.Show();
+                TaskDialogCustomButton closemainbutton = dialogPage.CustomButtons.Add("Close");
+                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+
+                var dialog = new TaskDialog(dialogPage);
+
+                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                {
+                    args.CancelClose = true;
+                    ShowAboutDialog(dialog);
+                };
+
+                TaskDialogButton result = dialog.Show();
+            }
         }
 
         private static (bool, string) IsSupported()
@@ -182,6 +222,63 @@ namespace USBFunctionModeSwitcher
             var origpage = dialog.Page;
 
             nobutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                args2.CancelClose = true;
+                dialog.Page = origpage;
+            };
+
+            dialog.Page = newPage;
+        }
+
+        private static void ShowPolarityDialog(TaskDialog dialog)
+        {
+            var newPage = new TaskDialogPage()
+            {
+                Title = "USB Function Mode Switcher",
+                Text = "You can change the polarity of the USB C port. This effectively allows you to use the cable in another direction.",
+                Instruction = "Polarity",
+                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                AllowCancel = true,
+                SizeToContent = true
+            };
+
+            TaskDialogCustomButton PolarityFirst = newPage.CustomButtons.Add("Polarity 1");
+            TaskDialogCustomButton PolaritySecond = newPage.CustomButtons.Add("Polarity 2");
+            TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
+
+            int pol = 0;
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
+            {
+                if (key != null && key.GetValueNames().Any(x => x.ToLower() == "polarity"))
+                    pol = (int)key.GetValue("Polarity");
+            }
+
+            if (pol == 0)
+                PolarityFirst.Enabled = false;
+            else
+                PolaritySecond.Enabled = false;
+
+            PolarityFirst.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
+                {
+                    key.SetValue("Polarity", 0, RegistryValueKind.DWord);
+                }
+                RebootDevice();
+            };
+
+            PolaritySecond.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
+                {
+                    key.SetValue("Polarity", 1, RegistryValueKind.DWord);
+                }
+                            RebootDevice();
+            };
+
+            var origpage = dialog.Page;
+
+            closebutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
             {
                 args2.CancelClose = true;
                 dialog.Page = origpage;

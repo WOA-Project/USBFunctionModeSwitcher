@@ -68,8 +68,20 @@ namespace USBFunctionModeSwitcher
             public string Description { get; set; }
             public string DisplayName { get; set; }
             public bool IsHost { get; set; }
+            public _UCM_TYPEC_PARTNER Partner { get; set; }
             public USBFunctionRole FunctionRole { get; set; }
             public USBHostRole HostRole { get; set; }
+        }
+
+        public enum _UCM_TYPEC_PARTNER
+        {
+            UcmTypeCPartnerInvalid = 0,
+            UcmTypeCPartnerUfp,
+            UcmTypeCPartnerDfp,
+            UcmTypeCPartnerPoweredCableNoUfp,
+            UcmTypeCPartnerPoweredCableWithUfp,
+            UcmTypeCPartnerAudioAccessory,
+            UcmTypeCPartnerDebugAccessory,
         }
 
         public USBRole[] USBRoles;
@@ -82,8 +94,25 @@ namespace USBFunctionModeSwitcher
 
             if (key != null)
             {
+                bool ret = !key.GetValueNames().Any(x => x == "Initialized");
+
                 key.Close();
-                return true;
+                return ret;
+            }
+
+            return false;
+        }
+
+        public static bool IsUSBCv2()
+        {
+            RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc");
+
+            if (key != null)
+            {
+                bool ret = key.GetValueNames().Any(x => x == "Initialized");
+
+                key.Close();
+                return ret;
             }
 
             return false;
@@ -125,6 +154,14 @@ namespace USBFunctionModeSwitcher
                 }
             }
 
+            if (IsUSBCv2())
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
+                {
+                    key.SetValue("Target", role.Partner, RegistryValueKind.DWord);
+                }
+            }
+
             if (!role.IsHost)
             {
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\USBFN", true))
@@ -160,6 +197,7 @@ namespace USBFunctionModeSwitcher
         private USBRole GetUSBRole()
         {
             bool isUSBC = IsUSBC();
+            bool isUSBCv2 = IsUSBCv2();
             bool TransportType = false;
             using (RegistryKey trkey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\QCDIAGROUTER"))
             {
@@ -171,6 +209,15 @@ namespace USBFunctionModeSwitcher
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\USB"))
                 {
                     IsFunction = (int)key.GetValue("OSDefaultRoleSwitchMode") == 2;
+                }
+            }
+            else if (isUSBCv2)
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc"))
+                {
+                    if (key != null && key.GetValueNames().Any(x => x.ToLower() == "target"))
+                        IsFunction = (int)key.GetValue("Target") == (int)_UCM_TYPEC_PARTNER.UcmTypeCPartnerDfp;
+                    else IsFunction = true;
                 }
             }
             else
@@ -196,6 +243,18 @@ namespace USBFunctionModeSwitcher
                         }
                     }
                 }
+            }
+            else if (isUSBCv2)
+            {
+                var target = _UCM_TYPEC_PARTNER.UcmTypeCPartnerDfp;
+
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc"))
+                {
+                    if (key != null && key.GetValueNames().Any(x => x.ToLower() == "target"))
+                        target = (_UCM_TYPEC_PARTNER)key.GetValue("Target");
+                }
+
+                return USBRoles.First(x => x.Partner == target);
             }
             else
             {
@@ -238,6 +297,41 @@ namespace USBFunctionModeSwitcher
 
                 usbroles.Add(hostunpowered);
                 usbroles.Add(hostpowered);
+            }
+
+            if (IsUSBCv2())
+            {
+                USBRole hostunpowered = new USBRole()
+                {
+                    DisplayName = "Host mode (Power output disabled)",
+                    Description = "Enables connecting USB devices to the phone using the Continuum dock or any powered USB docking station or hub.",
+                    IsHost = true,
+                    HostRole = new USBHostRole() { EnableVbus = false },
+                    Partner = _UCM_TYPEC_PARTNER.UcmTypeCPartnerPoweredCableWithUfp
+                };
+
+                USBRole hostpowered = new USBRole()
+                {
+                    DisplayName = "Host mode (Power output enabled) (Unsafe, read before enabling)",
+                    Description = "Enables connecting USB devices to the phone using a standard USB cable, non powered USB docking station, or any non powered hub.\n" +
+                    "\nImportant: Do not plug a cable transmiting power into the device when running in this mode. This includes a charging cable, PC USB port, wall charger or Continuum dock. Doing so will harm your device!",
+                    IsHost = true,
+                    HostRole = new USBHostRole() { EnableVbus = true },
+                    Partner = _UCM_TYPEC_PARTNER.UcmTypeCPartnerUfp
+                };
+
+                USBRole charging = new USBRole()
+                {
+                    DisplayName = "Charing mode",
+                    Description = "Enables charging the device. No USB transfers are allowed in this mode.",
+                    IsHost = true,
+                    HostRole = new USBHostRole() { EnableVbus = false },
+                    Partner = _UCM_TYPEC_PARTNER.UcmTypeCPartnerPoweredCableNoUfp
+                };
+
+                usbroles.Add(hostunpowered);
+                usbroles.Add(hostpowered);
+                usbroles.Add(charging);
             }
 
             using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\USBFN\Configurations"))
@@ -373,7 +467,7 @@ namespace USBFunctionModeSwitcher
                                 }
                         }
 
-                        USBRole usbrole = new USBRole() { DisplayName = "Function mode (" + subkey.Replace("config", "").Replace("composite", "") + ")", Description = description, IsHost = false, FunctionRole = functionRole };
+                        USBRole usbrole = new USBRole() { DisplayName = "Function mode (" + subkey.Replace("config", "").Replace("composite", "") + ")", Description = description, IsHost = false, FunctionRole = functionRole, Partner = _UCM_TYPEC_PARTNER.UcmTypeCPartnerDfp };
                         usbroles.Add(usbrole);
                     }
                 }
