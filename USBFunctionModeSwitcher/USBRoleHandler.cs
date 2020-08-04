@@ -201,14 +201,15 @@ namespace USBFunctionModeSwitcher
             bool TransportType = false;
             using (RegistryKey trkey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\QCDIAGROUTER"))
             {
-                TransportType = (int)trkey.GetValue("TransportType") == 1;
+                if (trkey != null)
+                    TransportType = (int?)trkey.GetValue("TransportType") == 1;
             }
             bool IsFunction = false;
             if (isUSBC)
             {
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\USB"))
                 {
-                    IsFunction = (int)key.GetValue("OSDefaultRoleSwitchMode") == 2;
+                    IsFunction = (int?)key.GetValue("OSDefaultRoleSwitchMode") == 2;
                 }
             }
             else if (isUSBCv2)
@@ -216,7 +217,7 @@ namespace USBFunctionModeSwitcher
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc"))
                 {
                     if (key != null && key.GetValueNames().Any(x => x.ToLower() == "target"))
-                        IsFunction = (int)key.GetValue("Target") == (int)_UCM_TYPEC_PARTNER.UcmTypeCPartnerDfp;
+                        IsFunction = (int?)key.GetValue("Target") == (int)_UCM_TYPEC_PARTNER.UcmTypeCPartnerDfp;
                     else IsFunction = true;
                 }
             }
@@ -229,17 +230,20 @@ namespace USBFunctionModeSwitcher
             {
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\USBFN"))
                 {
-                    bool IncludeDefaultCfg = (int)key.GetValue("IncludeDefaultCfg") == 1;
-                    int idProduct = (int)key.GetValue("idProduct");
-                    int idVendor = (int)key.GetValue("idVendor");
-                    string CurrentConfiguration = (string)key.GetValue("CurrentConfiguration");
-
-                    if (USBRoles.Any(x => !x.IsHost && x.FunctionRole.Name == CurrentConfiguration))
+                    if (key != null)
                     {
-                        USBRole currole = USBRoles.First(x => !x.IsHost && x.FunctionRole.Name == CurrentConfiguration);
-                        if (currole.FunctionRole.idProduct == idProduct && currole.FunctionRole.idVendor == idVendor && currole.FunctionRole.UseDefaultConfig == IncludeDefaultCfg && currole.FunctionRole.TransportType == TransportType)
+                        bool IncludeDefaultCfg = (int?)key.GetValue("IncludeDefaultCfg") == 1;
+                        int? idProduct = (int?)key.GetValue("idProduct");
+                        int? idVendor = (int?)key.GetValue("idVendor");
+                        string CurrentConfiguration = (string)key.GetValue("CurrentConfiguration");
+
+                        if (USBRoles.Any(x => !x.IsHost && x.FunctionRole.Name == CurrentConfiguration))
                         {
-                            return currole;
+                            USBRole currole = USBRoles.First(x => !x.IsHost && x.FunctionRole.Name == CurrentConfiguration);
+                            if (currole.FunctionRole.idProduct == idProduct && currole.FunctionRole.idVendor == idVendor && currole.FunctionRole.UseDefaultConfig == IncludeDefaultCfg && currole.FunctionRole.TransportType == TransportType)
+                            {
+                                return currole;
+                            }
                         }
                     }
                 }
@@ -262,7 +266,7 @@ namespace USBFunctionModeSwitcher
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc"))
                 {
                     if (key != null && key.GetValueNames().Any(x => x.ToLower() == "vbusenable"))
-                        vbus = (int)key.GetValue("VBusEnable") == 1;
+                        vbus = (int?)key.GetValue("VBusEnable") == 1;
                 }
 
                 if (vbus)

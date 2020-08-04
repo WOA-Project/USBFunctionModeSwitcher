@@ -1,4 +1,4 @@
-﻿/*
+/*
 MIT License
 
 Copyright (c) 2019 LumiaWOA
@@ -22,17 +22,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using KPreisser.UI;
-using Microsoft.Win32;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace USBFunctionModeSwitcher
 {
-    class Program
+    static class Program
     {
+        /// <summary>
+        ///  The main entry point for the application.
+        /// </summary>
         [STAThread]
         static void Main()
         {
@@ -46,35 +51,33 @@ namespace USBFunctionModeSwitcher
             {
                 var dialogPage = new TaskDialogPage()
                 {
-                    Title = "USB Function Mode Switcher",
-                    Instruction = "Unsupported device",
+                    Heading = "USB Function Mode Switcher",
+                    Caption = "Unsupported device",
                     Text = reason,
 
-                    Footer =
+                    Footnote =
                     {
                         Text = "Please verify that you run a supported device with the latest drivers available for it.",
-                        Icon = TaskDialogStandardIcon.Information,
+                        Icon = TaskDialogIcon.Information,
                     },
 
-                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
                     AllowCancel = true,
                     SizeToContent = true,
 
-                    Icon = TaskDialogStandardIcon.Error
+                    Icon = TaskDialogIcon.Error
                 };
 
-                TaskDialogCustomButton closemainbutton = dialogPage.CustomButtons.Add("Close");
-                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+                var closemainbutton = new TaskDialogCommandLinkButton("Close");
+                var aboutbutton = new TaskDialogCommandLinkButton("About", "About USB Function Mode Switcher", allowCloseDialog: false);
+                dialogPage.Buttons.Add(closemainbutton);
+                dialogPage.Buttons.Add(aboutbutton);
 
-                var dialog = new TaskDialog(dialogPage);
-
-                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                aboutbutton.Click += (object sender, EventArgs args) =>
                 {
-                    args.CancelClose = true;
-                    ShowAboutDialog(dialog);
+                    ShowAboutDialog(dialogPage);
                 };
 
-                TaskDialogButton result = dialog.Show();
+                TaskDialogButton result = TaskDialog.ShowDialog(dialogPage);
             }
         }
 
@@ -82,41 +85,43 @@ namespace USBFunctionModeSwitcher
         {
             var dialogPage = new TaskDialogPage()
             {
-                Title = "USB Function Mode Switcher",
-                Instruction = "Select a USB function mode to switch to",
+                Heading = "USB Function Mode Switcher",
+                Caption = "Select a USB function mode to switch to",
                 Text = "Below are the available modes your phone supports switching to.",
 
-                Footer =
+                Footnote =
                 {
                     Text = "Switching modes will require a reboot of the device.",
-                    Icon = TaskDialogStandardIcon.Warning,
+                    Icon = TaskDialogIcon.Warning,
                 },
 
-                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
                 AllowCancel = true,
                 SizeToContent = true
             };
 
             try
             {
-                var dialog = new TaskDialog(dialogPage);
-
                 var handler = new USBRoleHandler();
 
                 foreach (var role in handler.USBRoles)
                 {
-                    TaskDialogCustomButton rolebutton = dialogPage.CustomButtons.Add(role.DisplayName, role.Description);
+                    var rolebutton = new TaskDialogCommandLinkButton(role.DisplayName, role.Description);
+                    if (role.IsHost && role.HostRole.EnableVbus)
+                    {
+                        rolebutton.AllowCloseDialog = false;
+                    }
+                    dialogPage.Buttons.Add(rolebutton);
+
                     if (role == handler.CurrentUSBRole)
                     {
                         rolebutton.Enabled = false;
                     }
 
-                    rolebutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                    rolebutton.Click += (object sender, EventArgs args) =>
                     {
                         if (role.IsHost && role.HostRole.EnableVbus)
                         {
-                            args.CancelClose = true;
-                            ShowDisclaimerDialog(dialog, () =>
+                            ShowDisclaimerDialog(dialogPage, () =>
                             {
                                 handler.CurrentUSBRole = role;
                                 RebootDevice();
@@ -132,48 +137,47 @@ namespace USBFunctionModeSwitcher
 
                 if (USBRoleHandler.IsUSBCv2())
                 {
-                    TaskDialogCustomButton polaritybutton = dialogPage.CustomButtons.Add("Polarity", "Change the polarity of the USB C port");
-                    polaritybutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                    var polaritybutton = new TaskDialogCommandLinkButton("Polarity", "Change the polarity of the USB C port");
+                    polaritybutton.AllowCloseDialog = false;
+                    dialogPage.Buttons.Add(polaritybutton);
+                    polaritybutton.Click += (object sender, EventArgs args) =>
                     {
-                        args.CancelClose = true;
-                        ShowPolarityDialog(dialog);
+                        ShowPolarityDialog(dialogPage);
                     };
                 }
 
-                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
-                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                var aboutbutton = new TaskDialogCommandLinkButton("About", "About USB Function Mode Switcher", allowCloseDialog: false);
+                dialogPage.Buttons.Add(aboutbutton);
+                aboutbutton.Click += (object sender, EventArgs args) =>
                 {
-                    args.CancelClose = true;
-                    ShowAboutDialog(dialog);
+                    ShowAboutDialog(dialogPage);
                 };
 
-                TaskDialogButton result = dialog.Show();
+                TaskDialogButton result = TaskDialog.ShowDialog(dialogPage);
             }
             catch (Exception ex)
             {
                 dialogPage = new TaskDialogPage()
                 {
-                    Title = "USB Function Mode Switcher",
-                    Instruction = "Something happened",
+                    Heading = "USB Function Mode Switcher",
+                    Caption = "Something happened",
                     Text = ex.ToString(),
-                    CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
                     AllowCancel = true,
                     SizeToContent = true,
-                    Icon = TaskDialogStandardIcon.Error
+                    Icon = TaskDialogIcon.Error
                 };
 
-                TaskDialogCustomButton closemainbutton = dialogPage.CustomButtons.Add("Close");
-                TaskDialogCustomButton aboutbutton = dialogPage.CustomButtons.Add("About", "About USB Function Mode Switcher");
+                var closemainbutton = new TaskDialogCommandLinkButton("Close");
+                var aboutbutton = new TaskDialogCommandLinkButton("About", "About USB Function Mode Switcher", allowCloseDialog: false);
+                dialogPage.Buttons.Add(closemainbutton);
+                dialogPage.Buttons.Add(aboutbutton);
 
-                var dialog = new TaskDialog(dialogPage);
-
-                aboutbutton.Click += (object sender, TaskDialogButtonClickedEventArgs args) =>
+                aboutbutton.Click += (object sender, EventArgs args) =>
                 {
-                    args.CancelClose = true;
-                    ShowAboutDialog(dialog);
+                    ShowAboutDialog(dialogPage);
                 };
 
-                TaskDialogButton result = dialog.Show();
+                TaskDialogButton result = TaskDialog.ShowDialog(dialogPage);
             }
         }
 
@@ -198,53 +202,53 @@ namespace USBFunctionModeSwitcher
                 Process.Start("shutdown", "/r /t 10 /f");
         }
 
-        private static void ShowDisclaimerDialog(TaskDialog dialog, Action action)
+        private static void ShowDisclaimerDialog(TaskDialogPage origpage, Action action)
         {
             var newPage = new TaskDialogPage()
             {
-                Title = "USB Function Mode Switcher",
+                Heading = "USB Function Mode Switcher",
                 Text = "Switching to this mode will enable power output from the USB Type C port. This may harm your device if you plug in a charging cable or a continuum dock. In this mode NEVER plug in any charging cable, wall charger, PC USB Cable (connected to a PC) or any externally powered USB hub! We cannot be taken responsible for any damage caused by this, you have been warned!",
-                Instruction = "Do you really want to do this?",
-                Icon = TaskDialogStandardIcon.Warning,
-                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                Caption = "Do you really want to do this?",
+                Icon = TaskDialogIcon.Warning,
                 AllowCancel = true,
                 SizeToContent = true
             };
 
-            TaskDialogCustomButton nobutton = newPage.CustomButtons.Add("No");
-            TaskDialogCustomButton yesbutton = newPage.CustomButtons.Add("Yes I understand all the risks");
+            var nobutton = new TaskDialogCommandLinkButton("No", allowCloseDialog: false);
+            var yesbutton = new TaskDialogCommandLinkButton("Yes I understand all the risks");
+            newPage.Buttons.Add(nobutton);
+            newPage.Buttons.Add(yesbutton);
 
-            yesbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            yesbutton.Click += (object sender2, EventArgs args2) =>
             {
                 action();
             };
 
-            var origpage = dialog.Page;
-
-            nobutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            nobutton.Click += (object sender2, EventArgs args2) =>
             {
-                args2.CancelClose = true;
-                dialog.Page = origpage;
+                newPage.Navigate(origpage);
             };
 
-            dialog.Page = newPage;
+            origpage.Navigate(newPage);
         }
 
-        private static void ShowPolarityDialog(TaskDialog dialog)
+        private static void ShowPolarityDialog(TaskDialogPage origpage)
         {
             var newPage = new TaskDialogPage()
             {
-                Title = "USB Function Mode Switcher",
+                Heading = "USB Function Mode Switcher",
                 Text = "You can change the polarity of the USB C port. This effectively allows you to use the cable in another direction.",
-                Instruction = "Polarity",
-                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                Caption = "Polarity",
                 AllowCancel = true,
                 SizeToContent = true
             };
 
-            TaskDialogCustomButton PolarityFirst = newPage.CustomButtons.Add("Polarity 1");
-            TaskDialogCustomButton PolaritySecond = newPage.CustomButtons.Add("Polarity 2");
-            TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
+            var PolarityFirst = new TaskDialogCommandLinkButton("Polarity 1");
+            var PolaritySecond = new TaskDialogCommandLinkButton("Polarity 2");
+            var closebutton = new TaskDialogCommandLinkButton("Close", allowCloseDialog: false);
+            newPage.Buttons.Add(PolarityFirst);
+            newPage.Buttons.Add(PolaritySecond);
+            newPage.Buttons.Add(closebutton);
 
             int pol = 0;
             using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
@@ -258,7 +262,7 @@ namespace USBFunctionModeSwitcher
             else
                 PolaritySecond.Enabled = false;
 
-            PolarityFirst.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            PolarityFirst.Click += (object sender2, EventArgs args2) =>
             {
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
                 {
@@ -267,64 +271,53 @@ namespace USBFunctionModeSwitcher
                 RebootDevice();
             };
 
-            PolaritySecond.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            PolaritySecond.Click += (object sender2, EventArgs args2) =>
             {
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\usbc", true))
                 {
                     key.SetValue("Polarity", 1, RegistryValueKind.DWord);
                 }
-                            RebootDevice();
+                RebootDevice();
             };
 
-            var origpage = dialog.Page;
-
-            closebutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            closebutton.Click += (object sender2, EventArgs args2) =>
             {
-                args2.CancelClose = true;
-                dialog.Page = origpage;
+                newPage.Navigate(origpage);
             };
 
-            dialog.Page = newPage;
+            origpage.Navigate(newPage);
         }
 
-        private static void ShowAboutDialog(TaskDialog dialog)
+        private static void ShowAboutDialog(TaskDialogPage origpage)
         {
             var newPage = new TaskDialogPage()
             {
-                Title = "USB Function Mode Switcher",
-                Text = "Version " + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion +
-                        "\n" + FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).LegalCopyright +
-                        "\nReleased under the MIT License" +
-                        "\n\nLibraries used for this application:" +
-                        "\n\n<A HREF=\"https://github.com/kpreisser/TaskDialog\">TaskDialog</A>" +
-                        "\nCopyright (c) 2018 Konstantin Preißer, www.preisser-it.de (MIT)",
-                Instruction = "About",
-                Icon = TaskDialogStandardIcon.Information,
-                CustomButtonStyle = TaskDialogCustomButtonStyle.CommandLinks,
+                Heading = "USB Function Mode Switcher",
+                Text = "Version " + Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyFileVersionAttribute>().Version +
+                        "\n" + Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyCopyrightAttribute>().Copyright +
+                        "\nReleased under the MIT License",
+                Caption = "About",
+                Icon = TaskDialogIcon.Information,
                 AllowCancel = true,
-                EnableHyperlinks = true,
                 SizeToContent = true
             };
+            
+            var srcbutton = new TaskDialogCommandLinkButton("Source Code", allowCloseDialog: false);
+            var closebutton = new TaskDialogCommandLinkButton("Close", allowCloseDialog: false);
+            newPage.Buttons.Add(srcbutton);
+            newPage.Buttons.Add(closebutton);
 
-            TaskDialogCustomButton srcbutton = newPage.CustomButtons.Add("Source Code");
-            TaskDialogCustomButton closebutton = newPage.CustomButtons.Add("Close");
-
-            srcbutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            srcbutton.Click += (object sender2, EventArgs args2) =>
             {
-                args2.CancelClose = true;
                 Process.Start("https://github.com/WOA-Project/USBFunctionModeSwitcher");
             };
 
-            var origpage = dialog.Page;
-
-            closebutton.Click += (object sender2, TaskDialogButtonClickedEventArgs args2) =>
+            closebutton.Click += (object sender2, EventArgs args2) =>
             {
-                args2.CancelClose = true;
-                dialog.Page = origpage;
+                newPage.Navigate(origpage);
             };
 
-            dialog.Page = newPage;
+            origpage.Navigate(newPage);
         }
     }
 }
-

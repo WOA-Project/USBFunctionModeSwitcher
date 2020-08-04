@@ -26,12 +26,21 @@ SOFTWARE.
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net472</TargetFrameworks>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <LangVersion>7.1</LangVersion>
+    <TargetFramework>net5.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>imageres_93.ico</ApplicationIcon>
-    <StartupObject />
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>USBFunctionModeSwitcher</RootNamespace>
+    <AssemblyName>USBFunctionModeSwitcher</AssemblyName>
+    <PackageId>USB Function Mode Switcher</PackageId>
+    <Description>Enables switching between different USB modes on Windows Phone devices.</Description>
+    <Product>USB Function Mode Switcher</Product>
+    <Company>LumiaWOA Authors</Company>
+    <Copyright>Copyright © LumiaWOA Authors 2018-2020</Copyright>
+    <Authors>LumiaWOA Authors</Authors>
+    <AssemblyVersion>1.0.0.4</AssemblyVersion>
+    <FileVersion>1.0.0.4</FileVersion>
+    <Version>1.0.0.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,24 +49,6 @@ SOFTWARE.
 
   <ItemGroup>
     <EmbeddedResource Include="USBFN.reg" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\TaskDialog\TaskDialog.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xaml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
