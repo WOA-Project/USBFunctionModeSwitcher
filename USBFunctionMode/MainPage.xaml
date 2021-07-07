@@ -5,8 +5,9 @@
     xmlns:local="using:USBFunctionMode"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    muxc:BackdropMaterial.ApplyToRootOrPageBackground="True">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto">
         <StackPanel>
@@ -20,40 +21,37 @@
                         </Hyperlink>
                     </Paragraph>
                 </RichTextBlock>
-
-                <StackPanel Padding="0,0,0,16" Orientation="Horizontal">
-                    <FontIcon Glyph="&#xE713;" Margin="0,1,14,0"/>
-                    <TextBlock Text="General" FontSize="18" TextWrapping="Wrap" FontWeight="Bold"/>
-                </StackPanel>
-
-                <TextBlock Padding="0,0,0,8" Text="After changing your USB Function Mode, you need to unplug and replug your device for the configuration to take effect." TextWrapping="Wrap"/>
             </StackPanel>
 
-            <ListView Padding="24,8,24,0" x:Name="ModesListView" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" SelectionChanged="ModesListView_SelectionChanged" SelectionMode="Single">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="Padding" Value="8"/>
-                    </Style>
-                </ListView.ItemContainerStyle>
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+            <local:SettingsBlockControl Margin="24,0"
+                                        Title="General"
+                                        Description="After changing your USB Function Mode, you need to unplug and replug your device for the configuration to take effect.">
+                <local:SettingsBlockControl.Icon>
+                    <FontIcon Glyph="&#xECF0;"/>
+                </local:SettingsBlockControl.Icon>
 
-                            <SymbolIcon Symbol="Forward" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap"/>
-                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap" Opacity="0.75"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+                <local:SettingsBlockControl.ExpandableContent>
+                    <ListView x:Name="ModesListView" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" SelectionChanged="ModesListView_SelectionChanged" SelectionMode="Single">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="Padding" Value="16"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <local:SettingsDisplayControl Title="{Binding Title, Mode=OneWay}"
+                                                      Description="{Binding Description, Mode=OneWay}">
+                                    <local:SettingsDisplayControl.Icon>
+                                        <SymbolIcon Symbol="Forward"/>
+                                    </local:SettingsDisplayControl.Icon>
+                                </local:SettingsDisplayControl>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </local:SettingsBlockControl.ExpandableContent>
+            </local:SettingsBlockControl>
+            
+            
         </StackPanel>
     </ScrollViewer>
 </Page>
