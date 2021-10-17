@@ -10,7 +10,7 @@
 	<Identity
 	  Name="LumiaWOA.USBFunctionMode"
 	  Publisher="CN=Windows On Lumia Development Second Party Software 2020"
-	  Version="1.0.3.0" />
+	  Version="1.0.4.0" />
 
 	<mp:PhoneIdentity PhoneProductId="17c895c0-be06-4cdc-b9b8-d33cb6833bc1" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
