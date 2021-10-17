@@ -11,6 +11,11 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto">
         <StackPanel>
+            <StackPanel.ChildrenTransitions>
+                <TransitionCollection>
+                    <ReorderThemeTransition />
+                </TransitionCollection>
+            </StackPanel.ChildrenTransitions>
             <StackPanel Padding="24,56,24,0">
                 <TextBlock x:Name="TitleTextBlock" Padding="0,0,0,8" Text="USB Function Mode" FontWeight="Bold" FontSize="24" TextWrapping="Wrap"/>
                 <RichTextBlock Padding="0,0,0,32">
